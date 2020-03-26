@@ -21,11 +21,11 @@ var (
 )
 
 func NewKMSTransactor(svc *kms.KMS, id string) (*bind.TransactOpts, error) {
-	k := &key{
+	s := &Signer{
 		KMS: svc,
 		id:  id,
 	}
-	pub, err := k.Pubkey()
+	pub, err := s.Pubkey()
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func NewKMSTransactor(svc *kms.KMS, id string) (*bind.TransactOpts, error) {
 
 			digest := signer.Hash(tx).Bytes()
 
-			sig, err := k.Sign(digest)
+			sig, err := s.SignDigest(digest)
 			if err != nil {
 				return nil, err
 			}
@@ -72,20 +72,20 @@ func NewKMSTransactor(svc *kms.KMS, id string) (*bind.TransactOpts, error) {
 		}}, nil
 }
 
-type key struct {
+type Signer struct {
 	*kms.KMS
 	id     string
 	pubkey []byte
 }
 
-func (k key) Pubkey() ([]byte, error) {
-	if k.pubkey != nil {
-		return k.pubkey, nil
+func (s Signer) Pubkey() ([]byte, error) {
+	if s.pubkey != nil {
+		return s.pubkey, nil
 	}
 	in := &kms.GetPublicKeyInput{
-		KeyId: aws.String(k.id),
+		KeyId: aws.String(s.id),
 	}
-	out, err := k.GetPublicKey(in)
+	out, err := s.KMS.GetPublicKey(in)
 	if err != nil {
 		return nil, err
 	}
@@ -105,14 +105,14 @@ func (k key) Pubkey() ([]byte, error) {
 	return seq.Pubkey.Bytes, nil
 }
 
-func (k key) Sign(digest []byte) (signature []byte, err error) {
+func (s Signer) SignDigest(digest []byte) (signature []byte, err error) {
 	in := &kms.SignInput{
-		KeyId:            aws.String(k.id),
+		KeyId:            aws.String(s.id),
 		Message:          digest,
 		SigningAlgorithm: aws.String("ECDSA_SHA_256"),
 		MessageType:      aws.String("DIGEST"),
 	}
-	out, err := k.KMS.Sign(in)
+	out, err := s.KMS.Sign(in)
 	if err != nil {
 		return nil, err
 	}
