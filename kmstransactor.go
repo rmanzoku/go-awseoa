@@ -21,10 +21,11 @@ var (
 )
 
 func NewKMSTransactor(svc *kms.KMS, id string) (*bind.TransactOpts, error) {
-	s := &Signer{
-		KMS: svc,
-		id:  id,
+	s, err := NewSigner(svc, id)
+	if err != nil {
+		return nil, err
 	}
+
 	pub, err := s.Pubkey()
 	if err != nil {
 		return nil, err
@@ -76,6 +77,53 @@ type Signer struct {
 	*kms.KMS
 	id     string
 	pubkey []byte
+}
+
+func NewSigner(svc *kms.KMS, id string) (*Signer, error) {
+	s := &Signer{KMS: svc, id: id, pubkey: nil}
+	_, err := s.Pubkey()
+	return s, err
+}
+
+func CreateSigner(svc *kms.KMS) (*Signer, error) {
+	in := new(kms.CreateKeyInput)
+	in.SetCustomerMasterKeySpec("ECC_SECG_P256K1")
+	in.SetKeyUsage("SIGN_VERIFY")
+	in.SetOrigin("AWS_KMS")
+
+	out, err := svc.CreateKey(in)
+	if err != nil {
+		return nil, err
+	}
+	id := *out.KeyMetadata.KeyId
+	s, err := NewSigner(svc, id)
+	if err != nil {
+		return nil, err
+	}
+
+	addr, err := s.Address()
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.SetAlias(addr.String())
+	return s, err
+}
+
+func (s Signer) Address() (common.Address, error) {
+	pub, err := s.Pubkey()
+	if err != nil {
+		return common.Address{}, err
+	}
+	return publicKeyBytesToAddress(pub)
+}
+
+func (s Signer) SetAlias(alias string) error {
+	in := new(kms.CreateAliasInput)
+	in.SetAliasName("alias/" + alias)
+	in.SetTargetKeyId(s.id)
+	_, err := s.KMS.CreateAlias(in)
+	return err
 }
 
 func (s Signer) Pubkey() ([]byte, error) {

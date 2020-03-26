@@ -25,11 +25,34 @@ var (
 	keyID   = os.Getenv("KEYID")
 )
 
+var svc *kms.KMS
 var topts *bind.TransactOpts
 
 func TestFrom(t *testing.T) {
 	initTesting(t)
 	fmt.Println(topts.From.String())
+}
+
+func TestCreateSigner(t *testing.T) {
+	is := initTesting(t)
+	s, err := CreateSigner(svc)
+	fmt.Println(err)
+	is.Nil(err)
+
+	addr, err := s.Address()
+	is.Nil(err)
+	fmt.Println(addr.String())
+}
+
+func TestSetAlias(t *testing.T) {
+	is := initTesting(t)
+	s, err := NewSigner(svc, keyID)
+	is.Nil(err)
+
+	addr, err := s.Address()
+	is.Nil(err)
+	err = s.SetAlias(addr.String())
+	is.Nil(err)
 }
 
 func TestSendEther(t *testing.T) {
@@ -78,9 +101,9 @@ func initTesting(t *testing.T) is.I {
 	})
 
 	is.Nil(err)
-	k := kms.New(sess)
+	svc = kms.New(sess)
 
-	topts, err = NewKMSTransactor(k, keyID)
+	topts, err = NewKMSTransactor(svc, keyID)
 	is.Nil(err)
 
 	return is
