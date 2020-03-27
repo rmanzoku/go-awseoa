@@ -1,4 +1,4 @@
-package kmstransactor
+package awseoa
 
 import (
 	"encoding/asn1"
