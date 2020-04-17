@@ -39,9 +39,7 @@ func TestCreateSigner(t *testing.T) {
 	fmt.Println(err)
 	is.Nil(err)
 
-	addr, err := s.Address()
-	is.Nil(err)
-	fmt.Println(addr.String())
+	fmt.Println(s.Address().String())
 }
 
 func TestSetAlias(t *testing.T) {
@@ -49,9 +47,7 @@ func TestSetAlias(t *testing.T) {
 	s, err := NewSigner(svc, keyID)
 	is.Nil(err)
 
-	addr, err := s.Address()
-	is.Nil(err)
-	err = s.SetAlias(addr.String())
+	err = s.SetAlias(s.Address().String())
 	is.Nil(err)
 }
 
@@ -70,6 +66,28 @@ func TestSendEther(t *testing.T) {
 	is.Nil(err)
 
 	fmt.Println(tx.Hash().String())
+}
+
+func TestEthereumSign(t *testing.T) {
+	is := initTesting(t)
+
+	s, err := NewSigner(svc, keyID)
+	is.Nil(err)
+
+	msg := "0xd75be5d1b23bc1c3c22c0708a5c822f927f1eb8d609d684ef91996fd2bf2bbda"
+	msgb, err := decodeHex(msg)
+	is.Nil(err)
+
+	hash := toEthSignedMessageHash(msgb)
+
+	sig, err := s.EthereumSign(msgb)
+	is.Nil(err)
+
+	fmt.Println(s.Address().String())
+	fmt.Println(encodeToHex(sig))
+
+	addr, err := recover(hash, sig)
+	fmt.Println(addr.String())
 }
 
 func sendEther(client *ethclient.Client, transactOpts *bind.TransactOpts, to common.Address, amount *big.Int) (*types.Transaction, error) {

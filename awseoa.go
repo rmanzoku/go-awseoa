@@ -3,6 +3,7 @@ package awseoa
 import (
 	"encoding/asn1"
 	"errors"
+	"fmt"
 	"math/big"
 	"reflect"
 
@@ -50,25 +51,6 @@ func NewKMSTransactor(svc *kms.KMS, id string) (*bind.TransactOpts, error) {
 				return nil, err
 			}
 
-			// calc v
-			for _, v := range []int{0, 1} {
-				sigv := append(sig, byte(v))
-				pubkey, err := secp256k1.RecoverPubkey(digest, sigv)
-				if err != nil {
-					return nil, err
-				}
-
-				candidate, err := publicKeyBytesToAddress(pubkey)
-				if err != nil {
-					return nil, err
-				}
-
-				if reflect.DeepEqual(keyAddr.Bytes(), candidate.Bytes()) {
-					sig = append(sig, byte(v))
-					break
-				}
-			}
-
 			return tx.WithSignature(signer, sig)
 		}}, nil
 }
@@ -101,21 +83,21 @@ func CreateSigner(svc *kms.KMS) (*Signer, error) {
 		return nil, err
 	}
 
-	addr, err := s.Address()
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.SetAlias(addr.String())
+	err = s.SetAlias(s.Address().String())
 	return s, err
 }
 
-func (s Signer) Address() (common.Address, error) {
+func (s Signer) Address() common.Address {
 	pub, err := s.Pubkey()
 	if err != nil {
-		return common.Address{}, err
+		panic(err)
 	}
-	return publicKeyBytesToAddress(pub)
+	ret, err := publicKeyBytesToAddress(pub)
+	if err != nil {
+		panic(err)
+	}
+
+	return ret
 }
 
 func (s Signer) SetAlias(alias string) error {
@@ -179,7 +161,43 @@ func (s Signer) SignDigest(digest []byte) (signature []byte, err error) {
 		sig.S = new(big.Int).Sub(secp256k1N, sig.S)
 	}
 
-	return append(sig.R.Bytes(), sig.S.Bytes()...), nil
+	signature = append(sig.R.Bytes(), sig.S.Bytes()...)
+
+	// Calc V
+	for _, v := range []int{0, 1} {
+		sigv := append(signature, byte(v))
+		pubkey, err := secp256k1.RecoverPubkey(digest, sigv)
+		if err != nil {
+			return nil, err
+		}
+
+		candidate, err := publicKeyBytesToAddress(pubkey)
+		if err != nil {
+			return nil, err
+		}
+
+		if reflect.DeepEqual(s.Address().Bytes(), candidate.Bytes()) {
+			signature = append(signature, byte(v))
+			break
+		}
+	}
+
+	return signature, nil
+}
+
+func (s Signer) EthereumSign(msg []byte) (signature []byte, err error) {
+	digest := toEthSignedMessageHash(msg)
+	sig, err := s.SignDigest(digest)
+
+	if sig[64] < 27 {
+		sig[64] += 27
+	}
+
+	return sig, nil
+}
+
+func (s Signer) TransactOpts() (*bind.TransactOpts, error) {
+	return NewKMSTransactor(s.KMS, s.id)
 }
 
 func publicKeyBytesToAddress(pub []byte) (common.Address, error) {
@@ -188,4 +206,13 @@ func publicKeyBytesToAddress(pub []byte) (common.Address, error) {
 		return common.Address{}, err
 	}
 	return crypto.PubkeyToAddress(*pubkey), nil
+}
+
+func toEthSignedMessageHash(message []byte) []byte {
+	msg := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(message), message)
+	return keccak256([]byte(msg))
+}
+
+func keccak256(data []byte) []byte {
+	return crypto.Keccak256(data)
 }
