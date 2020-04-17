@@ -1,5 +1,5 @@
 .envrc
-
+cmd/awseoa/awseoa
 # Binaries for programs and plugins
 *.exe
 *.exe~

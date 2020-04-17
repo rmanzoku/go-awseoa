@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	region  = os.Getenv("AWS_DEFAULT_REGION")
+	region  = os.Getenv("AWS_REGION")
 	profile = os.Getenv("AWS_PROFILE")
 )
 
