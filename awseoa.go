@@ -57,12 +57,12 @@ func NewKMSTransactor(svc *kms.KMS, id string) (*bind.TransactOpts, error) {
 
 type Signer struct {
 	*kms.KMS
-	id     string
+	ID     string
 	pubkey []byte
 }
 
 func NewSigner(svc *kms.KMS, id string) (*Signer, error) {
-	s := &Signer{KMS: svc, id: id, pubkey: nil}
+	s := &Signer{KMS: svc, ID: id, pubkey: nil}
 	_, err := s.Pubkey()
 	return s, err
 }
@@ -103,7 +103,7 @@ func (s Signer) Address() common.Address {
 func (s Signer) SetAlias(alias string) error {
 	in := new(kms.CreateAliasInput)
 	in.SetAliasName("alias/" + alias)
-	in.SetTargetKeyId(s.id)
+	in.SetTargetKeyId(s.ID)
 	_, err := s.KMS.CreateAlias(in)
 	return err
 }
@@ -113,7 +113,7 @@ func (s Signer) Pubkey() ([]byte, error) {
 		return s.pubkey, nil
 	}
 	in := &kms.GetPublicKeyInput{
-		KeyId: aws.String(s.id),
+		KeyId: aws.String(s.ID),
 	}
 	out, err := s.KMS.GetPublicKey(in)
 	if err != nil {
@@ -137,7 +137,7 @@ func (s Signer) Pubkey() ([]byte, error) {
 
 func (s Signer) SignDigest(digest []byte) (signature []byte, err error) {
 	in := &kms.SignInput{
-		KeyId:            aws.String(s.id),
+		KeyId:            aws.String(s.ID),
 		Message:          digest,
 		SigningAlgorithm: aws.String("ECDSA_SHA_256"),
 		MessageType:      aws.String("DIGEST"),
@@ -197,7 +197,7 @@ func (s Signer) EthereumSign(msg []byte) (signature []byte, err error) {
 }
 
 func (s Signer) TransactOpts() (*bind.TransactOpts, error) {
-	return NewKMSTransactor(s.KMS, s.id)
+	return NewKMSTransactor(s.KMS, s.ID)
 }
 
 func publicKeyBytesToAddress(pub []byte) (common.Address, error) {
