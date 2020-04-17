@@ -1,6 +1,20 @@
 # AWS Managed EOA
 AWS Managed EOA is an Ethereum EOA(Externally Owned Account) using [Asymmetric Keys of AWS Key Management Service](https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html).
 
+## Using commad line
+
+```sh
+$ go install github.com/rmanzoku/go-awseoa/cmd/awseoa
+
+$ export AWS_REGION=YOUR_REGION
+$ export AWS_PROFILE=YOUR_PROFILE
+$ awseoa list
+# list keys
+
+$ awseoa new
+# create new key and set alias as address
+```
+
 ## Example for sending Ether
 
 ```golang
