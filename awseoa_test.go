@@ -28,7 +28,6 @@ var svc *kms.KMS
 var topts *bind.TransactOpts
 
 func TestFrom(t *testing.T) {
-	initTesting(t)
 	fmt.Println(topts.From.String())
 }
 
@@ -36,7 +35,7 @@ func TestCreateSigner(t *testing.T) {
 	if os.Getenv("CREATE") == "" {
 		t.Skip()
 	}
-	initTesting(t)
+
 	s, err := CreateSigner(svc)
 	fmt.Println(err)
 	assert.Nil(t, err)
@@ -45,7 +44,6 @@ func TestCreateSigner(t *testing.T) {
 }
 
 func TestSetAlias(t *testing.T) {
-	initTesting(t)
 	s, err := NewSigner(svc, keyID)
 	assert.Nil(t, err)
 
@@ -54,8 +52,6 @@ func TestSetAlias(t *testing.T) {
 }
 
 func TestSendEther(t *testing.T) {
-	initTesting(t)
-
 	topts.GasPrice, _ = new(big.Int).SetString("1000000000", 10)
 	topts.Context = context.TODO()
 
@@ -71,8 +67,6 @@ func TestSendEther(t *testing.T) {
 }
 
 func TestEthereumSign(t *testing.T) {
-	initTesting(t)
-
 	s, err := NewSigner(svc, keyID)
 	assert.Nil(t, err)
 
@@ -93,17 +87,23 @@ func TestEthereumSign(t *testing.T) {
 	fmt.Println(addr.String())
 }
 
-func initTesting(t *testing.T) {
+func TestMain(m *testing.M) {
+
 	sess, err := session.NewSessionWithOptions(session.Options{
 		Config:  aws.Config{Region: aws.String(region)},
 		Profile: profile,
 	})
+	if err != nil {
+		panic(err)
+	}
 
-	assert.Nil(t, err)
 	svc = kms.New(sess)
 
 	topts, err = NewKMSTransactor(svc, keyID)
-	assert.Nil(t, err)
+	if err != nil {
+		panic(err)
+	}
 
-	return
+	status := m.Run()
+	os.Exit(status)
 }
