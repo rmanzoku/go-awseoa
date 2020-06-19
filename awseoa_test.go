@@ -12,7 +12,6 @@ import (
 	"github.com/cheekybits/is"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"golang.org/x/net/context"
 )
@@ -34,6 +33,9 @@ func TestFrom(t *testing.T) {
 }
 
 func TestCreateSigner(t *testing.T) {
+	if os.Getenv("CREATE") == "" {
+		t.Skip()
+	}
 	is := initTesting(t)
 	s, err := CreateSigner(svc)
 	fmt.Println(err)
@@ -62,7 +64,7 @@ func TestSendEther(t *testing.T) {
 	ethcli, err := ethclient.Dial(rpc)
 	is.Nil(err)
 
-	tx, err := sendEther(ethcli, topts, to, amount)
+	tx, err := SendEther(ethcli, topts, to, amount)
 	is.Nil(err)
 
 	fmt.Println(tx.Hash().String())
@@ -88,27 +90,6 @@ func TestEthereumSign(t *testing.T) {
 
 	addr, err := recover(hash, sig)
 	fmt.Println(addr.String())
-}
-
-func sendEther(client *ethclient.Client, transactOpts *bind.TransactOpts, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	ctx := transactOpts.Context
-	nonce, err := client.NonceAt(ctx, transactOpts.From, nil)
-	if err != nil {
-		return nil, err
-	}
-	tx := types.NewTransaction(nonce, to, amount, 21000, transactOpts.GasPrice, nil)
-
-	chainID, err := client.NetworkID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	tx, err = transactOpts.Signer(types.NewEIP155Signer(chainID), transactOpts.From, tx)
-	if err != nil {
-		return nil, err
-	}
-
-	return tx, client.SendTransaction(transactOpts.Context, tx)
 }
 
 func initTesting(t *testing.T) is.I {
