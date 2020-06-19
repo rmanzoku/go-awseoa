@@ -1,6 +1,7 @@
 package awseoa
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"os"
@@ -13,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 var (
