@@ -17,6 +17,10 @@ var (
 	profile = os.Getenv("AWS_PROFILE")
 )
 
+var (
+	flagTags = false
+)
+
 func List(svc *kms.KMS) (err error) {
 
 	in := &kms.ListAliasesInput{}
@@ -39,7 +43,20 @@ func List(svc *kms.KMS) (err error) {
 			keyID = *a.TargetKeyId
 		}
 
-		fmt.Println(alias, keyID)
+		tags := ""
+		if flagTags {
+			in := &kms.ListResourceTagsInput{KeyId: a.TargetKeyId}
+			out, err := svc.ListResourceTags(in)
+			if err != nil {
+				return err
+			}
+
+			for _, t := range out.Tags {
+				tags += *t.TagKey + ":" + *t.TagValue + "\t"
+			}
+		}
+
+		fmt.Println(alias, keyID, tags)
 	}
 	return
 }
@@ -55,8 +72,10 @@ func New(svc *kms.KMS) (err error) {
 
 func main() {
 	var err error
-	_ = flag.NewFlagSet("list", flag.ExitOnError)
+	listFlag := flag.NewFlagSet("list", flag.ExitOnError)
 	_ = flag.NewFlagSet("new", flag.ExitOnError)
+
+	listFlag.BoolVar(&flagTags, "tags", flagTags, "Show tags")
 
 	if len(os.Args) == 1 {
 		flag.Usage()
@@ -71,6 +90,8 @@ func main() {
 		return
 	}
 	svc := kms.New(sess)
+
+	listFlag.Parse(os.Args[2:])
 
 	switch os.Args[1] {
 	case "list":
