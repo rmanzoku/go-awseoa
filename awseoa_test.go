@@ -1,6 +1,7 @@
 package awseoa
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"os"
@@ -9,12 +10,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
-	"github.com/cheekybits/is"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"golang.org/x/net/context"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -29,100 +28,82 @@ var svc *kms.KMS
 var topts *bind.TransactOpts
 
 func TestFrom(t *testing.T) {
-	initTesting(t)
 	fmt.Println(topts.From.String())
 }
 
 func TestCreateSigner(t *testing.T) {
-	is := initTesting(t)
+	if os.Getenv("CREATE") == "" {
+		t.Skip()
+	}
+
 	s, err := CreateSigner(svc)
 	fmt.Println(err)
-	is.Nil(err)
+	assert.Nil(t, err)
 
 	fmt.Println(s.Address().String())
 }
 
 func TestSetAlias(t *testing.T) {
-	is := initTesting(t)
 	s, err := NewSigner(svc, keyID)
-	is.Nil(err)
+	assert.Nil(t, err)
 
 	err = s.SetAlias(s.Address().String())
-	is.Nil(err)
+	assert.Nil(t, err)
 }
 
 func TestSendEther(t *testing.T) {
-	is := initTesting(t)
-
 	topts.GasPrice, _ = new(big.Int).SetString("1000000000", 10)
 	topts.Context = context.TODO()
 
 	amount, _ := new(big.Int).SetString("1000000000000", 10)
 
 	ethcli, err := ethclient.Dial(rpc)
-	is.Nil(err)
+	assert.Nil(t, err)
 
-	tx, err := sendEther(ethcli, topts, to, amount)
-	is.Nil(err)
+	tx, err := SendEther(ethcli, topts, to, amount)
+	assert.Nil(t, err)
 
 	fmt.Println(tx.Hash().String())
 }
 
 func TestEthereumSign(t *testing.T) {
-	is := initTesting(t)
-
 	s, err := NewSigner(svc, keyID)
-	is.Nil(err)
+	assert.Nil(t, err)
 
 	msg := "0xd75be5d1b23bc1c3c22c0708a5c822f927f1eb8d609d684ef91996fd2bf2bbda"
 	msgb, err := decodeHex(msg)
-	is.Nil(err)
+	assert.Nil(t, err)
 
 	hash := toEthSignedMessageHash(msgb)
 
 	sig, err := s.EthereumSign(msgb)
-	is.Nil(err)
+	assert.Nil(t, err)
 
 	fmt.Println(s.Address().String())
 	fmt.Println(encodeToHex(sig))
 
 	addr, err := recover(hash, sig)
+	assert.Nil(t, err)
 	fmt.Println(addr.String())
 }
 
-func sendEther(client *ethclient.Client, transactOpts *bind.TransactOpts, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	ctx := transactOpts.Context
-	nonce, err := client.NonceAt(ctx, transactOpts.From, nil)
-	if err != nil {
-		return nil, err
-	}
-	tx := types.NewTransaction(nonce, to, amount, 21000, transactOpts.GasPrice, nil)
+func TestMain(m *testing.M) {
 
-	chainID, err := client.NetworkID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	tx, err = transactOpts.Signer(types.NewEIP155Signer(chainID), transactOpts.From, tx)
-	if err != nil {
-		return nil, err
-	}
-
-	return tx, client.SendTransaction(transactOpts.Context, tx)
-}
-
-func initTesting(t *testing.T) is.I {
-	is := is.New(t)
 	sess, err := session.NewSessionWithOptions(session.Options{
 		Config:  aws.Config{Region: aws.String(region)},
 		Profile: profile,
 	})
+	if err != nil {
+		panic(err)
+	}
 
-	is.Nil(err)
 	svc = kms.New(sess)
 
 	topts, err = NewKMSTransactor(svc, keyID)
-	is.Nil(err)
+	if err != nil {
+		panic(err)
+	}
 
-	return is
+	status := m.Run()
+	os.Exit(status)
 }
