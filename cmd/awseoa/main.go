@@ -61,6 +61,20 @@ func List(svc *kms.KMS) (err error) {
 	return
 }
 
+func AddTag(svc *kms.KMS, keyID, tagKey, tagValue string) (err error) {
+	in := &kms.TagResourceInput{
+		KeyId: aws.String(keyID),
+		Tags: []*kms.Tag{
+			&kms.Tag{
+				TagKey:   aws.String(tagKey),
+				TagValue: aws.String(tagValue),
+			},
+		},
+	}
+	_, err = svc.TagResource(in)
+	return
+}
+
 func New(svc *kms.KMS) (err error) {
 	signer, err := awseoa.CreateSigner(svc)
 	if err != nil {
@@ -74,6 +88,7 @@ func main() {
 	var err error
 	listFlag := flag.NewFlagSet("list", flag.ExitOnError)
 	_ = flag.NewFlagSet("new", flag.ExitOnError)
+	_ = flag.NewFlagSet("add-tag", flag.ExitOnError)
 
 	listFlag.BoolVar(&flagTags, "tags", flagTags, "Show tags")
 
@@ -90,7 +105,6 @@ func main() {
 		return
 	}
 	svc := kms.New(sess)
-
 	listFlag.Parse(os.Args[2:])
 
 	switch os.Args[1] {
@@ -98,6 +112,10 @@ func main() {
 		err = List(svc)
 	case "new":
 		err = New(svc)
+	case "add-tag":
+		keyID := os.Args[2]
+		tag := strings.Split(os.Args[3], ":")
+		err = AddTag(svc, keyID, tag[0], tag[1])
 	default:
 		flag.Usage()
 	}
