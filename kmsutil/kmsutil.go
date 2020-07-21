@@ -5,8 +5,19 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	awseoa "github.com/rmanzoku/go-awseoa"
 )
+
+func TransactOptsFromAddress(svc *kms.KMS, addr common.Address) (*bind.TransactOpts, error) {
+	keyID, err := KeyIDFromAddress(svc, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	return awseoa.NewKMSTransactor(svc, keyID)
+}
 
 func KeyIDFromAddress(svc *kms.KMS, addr common.Address) (string, error) {
 	in := &kms.ListAliasesInput{}
