@@ -21,8 +21,8 @@ var (
 	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
 )
 
-func NewKMSTransactor(svc *kms.KMS, id string) (*bind.TransactOpts, error) {
-	s, err := NewSigner(svc, id)
+func NewKMSTransactor(svc *kms.KMS, id string, chainID *big.Int) (*bind.TransactOpts, error) {
+	s, err := NewSigner(svc, id, chainID)
 	if err != nil {
 		return nil, err
 	}
@@ -39,11 +39,11 @@ func NewKMSTransactor(svc *kms.KMS, id string) (*bind.TransactOpts, error) {
 
 	return &bind.TransactOpts{
 		From: keyAddr,
-		Signer: func(signer types.Signer, address common.Address, tx *types.Transaction) (*types.Transaction, error) {
+		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
 			if address != keyAddr {
 				return nil, errors.New("not authorized to sign this account")
 			}
-
+			signer := types.NewEIP155Signer(s.chainID)
 			digest := signer.Hash(tx).Bytes()
 
 			sig, err := s.SignDigest(digest)
@@ -57,17 +57,18 @@ func NewKMSTransactor(svc *kms.KMS, id string) (*bind.TransactOpts, error) {
 
 type Signer struct {
 	*kms.KMS
-	ID     string
-	pubkey []byte
+	ID      string
+	pubkey  []byte
+	chainID *big.Int
 }
 
-func NewSigner(svc *kms.KMS, id string) (*Signer, error) {
-	s := &Signer{KMS: svc, ID: id, pubkey: nil}
+func NewSigner(svc *kms.KMS, id string, chainID *big.Int) (*Signer, error) {
+	s := &Signer{KMS: svc, ID: id, pubkey: nil, chainID: chainID}
 	_, err := s.Pubkey()
 	return s, err
 }
 
-func CreateSigner(svc *kms.KMS) (*Signer, error) {
+func CreateSigner(svc *kms.KMS, chainID *big.Int) (*Signer, error) {
 	in := new(kms.CreateKeyInput)
 	in.SetCustomerMasterKeySpec("ECC_SECG_P256K1")
 	in.SetKeyUsage("SIGN_VERIFY")
@@ -78,7 +79,7 @@ func CreateSigner(svc *kms.KMS) (*Signer, error) {
 		return nil, err
 	}
 	id := *out.KeyMetadata.KeyId
-	s, err := NewSigner(svc, id)
+	s, err := NewSigner(svc, id, chainID)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +198,7 @@ func (s Signer) EthereumSign(msg []byte) (signature []byte, err error) {
 }
 
 func (s Signer) TransactOpts() (*bind.TransactOpts, error) {
-	return NewKMSTransactor(s.KMS, s.ID)
+	return NewKMSTransactor(s.KMS, s.ID, s.chainID)
 }
 
 func publicKeyBytesToAddress(pub []byte) (common.Address, error) {

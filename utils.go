@@ -42,12 +42,7 @@ func SendEther(client *ethclient.Client, transactOpts *bind.TransactOpts, to com
 	}
 	tx := types.NewTransaction(nonce, to, amount, 21000, transactOpts.GasPrice, nil)
 
-	chainID, err := client.NetworkID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	tx, err = transactOpts.Signer(types.NewEIP155Signer(chainID), transactOpts.From, tx)
+	tx, err = transactOpts.Signer(transactOpts.From, tx)
 	if err != nil {
 		return nil, err
 	}
