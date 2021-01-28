@@ -1,27 +1,38 @@
 package kmsutil
 
 import (
+	"context"
 	"errors"
+	"math/big"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	awseoa "github.com/rmanzoku/go-awseoa"
 )
 
-func TransactOptsFromAddress(svc *kms.KMS, addr common.Address) (*bind.TransactOpts, error) {
+func NewKMSClient() (*kms.Client, error) {
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		return nil, err
+	}
+	return kms.NewFromConfig(cfg), nil
+}
+
+func TransactOptsFromAddress(svc *kms.Client, addr common.Address, chainID *big.Int) (*bind.TransactOpts, error) {
 	keyID, err := KeyIDFromAddress(svc, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	return awseoa.NewKMSTransactor(svc, keyID)
+	return awseoa.NewKMSTransactor(svc, keyID, chainID)
 }
 
-func KeyIDFromAddress(svc *kms.KMS, addr common.Address) (string, error) {
+func KeyIDFromAddress(svc *kms.Client, addr common.Address) (string, error) {
 	in := &kms.ListAliasesInput{}
-	out, err := svc.ListAliases(in)
+	out, err := svc.ListAliases(context.TODO(), in)
 	if err != nil {
 		return "", err
 	}
