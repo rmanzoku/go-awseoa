@@ -1,7 +1,7 @@
 # AWS Managed EOA
 AWS Managed EOA is an Ethereum EOA(Externally Owned Account) using [Asymmetric Keys of AWS Key Management Service](https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html).
 
-Now `aws-sdk-go-v2` is supported!.
+Now `aws-sdk-go-v2` is supported!. you can use v2
 
 ## Using commad line
 
@@ -34,7 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/rmanzoku/go-awseoa"
+	"github.com/rmanzoku/go-awseoa/v2"
 )
 
 var (
