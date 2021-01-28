@@ -7,9 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -18,13 +17,12 @@ import (
 
 var (
 	rpc     = os.Getenv("RPC")
-	profile = os.Getenv("AWS_PROFILE")
-	region  = os.Getenv("AWS_DEFAULT_REGION")
+	chainID = big.NewInt(4)
 	to      = common.HexToAddress("0xd868711BD9a2C6F1548F5f4737f71DA67d821090")
 	keyID   = os.Getenv("KEYID")
 )
 
-var svc *kms.KMS
+var svc *kms.Client
 var topts *bind.TransactOpts
 
 func TestFrom(t *testing.T) {
@@ -36,7 +34,7 @@ func TestCreateSigner(t *testing.T) {
 		t.Skip()
 	}
 
-	s, err := CreateSigner(svc)
+	s, err := CreateSigner(svc, chainID)
 	fmt.Println(err)
 	assert.Nil(t, err)
 
@@ -44,11 +42,15 @@ func TestCreateSigner(t *testing.T) {
 }
 
 func TestSetAlias(t *testing.T) {
-	s, err := NewSigner(svc, keyID)
-	assert.Nil(t, err)
+	s, err := NewSigner(svc, keyID, chainID)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = s.SetAlias(s.Address().String())
-	assert.Nil(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestSendEther(t *testing.T) {
@@ -67,7 +69,7 @@ func TestSendEther(t *testing.T) {
 }
 
 func TestEthereumSign(t *testing.T) {
-	s, err := NewSigner(svc, keyID)
+	s, err := NewSigner(svc, keyID, chainID)
 	assert.Nil(t, err)
 
 	msg := "0xd75be5d1b23bc1c3c22c0708a5c822f927f1eb8d609d684ef91996fd2bf2bbda"
@@ -89,17 +91,12 @@ func TestEthereumSign(t *testing.T) {
 
 func TestMain(m *testing.M) {
 
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Config:  aws.Config{Region: aws.String(region)},
-		Profile: profile,
-	})
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		panic(err)
 	}
-
-	svc = kms.New(sess)
-
-	topts, err = NewKMSTransactor(svc, keyID)
+	svc = kms.NewFromConfig(cfg)
+	topts, err = NewKMSTransactor(svc, keyID, chainID)
 	if err != nil {
 		panic(err)
 	}
