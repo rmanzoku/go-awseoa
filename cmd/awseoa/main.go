@@ -1,30 +1,28 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"math/big"
 	"os"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
+	kmstypes "github.com/aws/aws-sdk-go-v2/service/kms/types"
 	awseoa "github.com/rmanzoku/go-awseoa"
+	"github.com/rmanzoku/go-awseoa/kmsutil"
 )
 
 var (
-	region  = os.Getenv("AWS_REGION")
-	profile = os.Getenv("AWS_PROFILE")
+	flagTags = true
 )
 
-var (
-	flagTags = false
-)
-
-func List(svc *kms.KMS) (err error) {
+func List(svc *kms.Client) (err error) {
 
 	in := &kms.ListAliasesInput{}
-	out, err := svc.ListAliases(in)
+	out, err := svc.ListAliases(context.TODO(), in)
 	if err != nil {
 		return
 	}
@@ -46,7 +44,7 @@ func List(svc *kms.KMS) (err error) {
 		tags := ""
 		if flagTags {
 			in := &kms.ListResourceTagsInput{KeyId: a.TargetKeyId}
-			out, err := svc.ListResourceTags(in)
+			out, err := svc.ListResourceTags(context.TODO(), in)
 			if err != nil {
 				return err
 			}
@@ -61,22 +59,22 @@ func List(svc *kms.KMS) (err error) {
 	return
 }
 
-func AddTag(svc *kms.KMS, keyID, tagKey, tagValue string) (err error) {
+func AddTag(svc *kms.Client, keyID, tagKey, tagValue string) (err error) {
 	in := &kms.TagResourceInput{
 		KeyId: aws.String(keyID),
-		Tags: []*kms.Tag{
-			&kms.Tag{
+		Tags: []kmstypes.Tag{
+			{
 				TagKey:   aws.String(tagKey),
 				TagValue: aws.String(tagValue),
 			},
 		},
 	}
-	_, err = svc.TagResource(in)
+	_, err = svc.TagResource(context.TODO(), in)
 	return
 }
 
-func New(svc *kms.KMS) (err error) {
-	signer, err := awseoa.CreateSigner(svc)
+func New(svc *kms.Client) (err error) {
+	signer, err := awseoa.CreateSigner(svc, big.NewInt(4))
 	if err != nil {
 		return
 	}
@@ -97,14 +95,10 @@ func main() {
 		return
 	}
 
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Config:  aws.Config{Region: aws.String(region)},
-		Profile: profile,
-	})
+	svc, err := kmsutil.NewKMSClient()
 	if err != nil {
-		return
+		panic(err)
 	}
-	svc := kms.New(sess)
 	listFlag.Parse(os.Args[2:])
 
 	switch os.Args[1] {

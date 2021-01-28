@@ -1,25 +1,3 @@
-# AWS Managed EOA
-AWS Managed EOA is an Ethereum EOA(Externally Owned Account) using [Asymmetric Keys of AWS Key Management Service](https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html).
-
-Now `aws-sdk-go-v2` is supported! You can use it v2 tags.
-
-## Using commad line
-
-```sh
-$ go install github.com/rmanzoku/go-awseoa/cmd/awseoa
-
-$ export AWS_REGION=YOUR_REGION
-$ export AWS_PROFILE=YOUR_PROFILE
-$ awseoa list
-# list keys
-
-$ awseoa new
-# create new key and set alias as address
-```
-
-## Example for sending Ether v2
-
-```golang
 package main
 
 import (
@@ -86,7 +64,3 @@ func sendEther(client *ethclient.Client, transactOpts *bind.TransactOpts, to com
 
 	return tx, client.SendTransaction(transactOpts.Context, tx)
 }
-```
-
-## Same concept
-- A JavaScript Web3 Provider using AWS KMS [odanado/aws-kms-provider](https://github.com/odanado/aws-kms-provider)

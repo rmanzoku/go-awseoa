@@ -1,14 +1,17 @@
 package awseoa
 
 import (
+	"context"
 	"encoding/asn1"
 	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
+	kmstypes "github.com/aws/aws-sdk-go-v2/service/kms/types"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -21,7 +24,7 @@ var (
 	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
 )
 
-func NewKMSTransactor(svc *kms.KMS, id string, chainID *big.Int) (*bind.TransactOpts, error) {
+func NewKMSTransactor(svc *kms.Client, id string, chainID *big.Int) (*bind.TransactOpts, error) {
 	s, err := NewSigner(svc, id, chainID)
 	if err != nil {
 		return nil, err
@@ -56,25 +59,25 @@ func NewKMSTransactor(svc *kms.KMS, id string, chainID *big.Int) (*bind.Transact
 }
 
 type Signer struct {
-	*kms.KMS
+	*kms.Client
 	ID      string
 	pubkey  []byte
 	chainID *big.Int
 }
 
-func NewSigner(svc *kms.KMS, id string, chainID *big.Int) (*Signer, error) {
-	s := &Signer{KMS: svc, ID: id, pubkey: nil, chainID: chainID}
+func NewSigner(svc *kms.Client, id string, chainID *big.Int) (*Signer, error) {
+	s := &Signer{Client: svc, ID: id, pubkey: nil, chainID: chainID}
 	_, err := s.Pubkey()
 	return s, err
 }
 
-func CreateSigner(svc *kms.KMS, chainID *big.Int) (*Signer, error) {
+func CreateSigner(svc *kms.Client, chainID *big.Int) (*Signer, error) {
 	in := new(kms.CreateKeyInput)
-	in.SetCustomerMasterKeySpec("ECC_SECG_P256K1")
-	in.SetKeyUsage("SIGN_VERIFY")
-	in.SetOrigin("AWS_KMS")
+	in.CustomerMasterKeySpec = kmstypes.CustomerMasterKeySpecEccSecgP256k1
+	in.KeyUsage = kmstypes.KeyUsageTypeSignVerify
+	in.Origin = kmstypes.OriginTypeAwsKms
 
-	out, err := svc.CreateKey(in)
+	out, err := svc.CreateKey(context.TODO(), in)
 	if err != nil {
 		return nil, err
 	}
@@ -103,10 +106,17 @@ func (s Signer) Address() common.Address {
 
 func (s Signer) SetAlias(alias string) error {
 	in := new(kms.CreateAliasInput)
-	in.SetAliasName("alias/" + alias)
-	in.SetTargetKeyId(s.ID)
-	_, err := s.KMS.CreateAlias(in)
-	return err
+	in.AliasName = aws.String("alias/" + alias)
+	in.TargetKeyId = aws.String(s.ID)
+	_, err := s.Client.CreateAlias(context.TODO(), in)
+	if err != nil {
+		e := errors.New("AlreadyExistsException")
+		if errors.As(err, &e) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (s Signer) Pubkey() ([]byte, error) {
@@ -116,7 +126,7 @@ func (s Signer) Pubkey() ([]byte, error) {
 	in := &kms.GetPublicKeyInput{
 		KeyId: aws.String(s.ID),
 	}
-	out, err := s.KMS.GetPublicKey(in)
+	out, err := s.Client.GetPublicKey(context.TODO(), in)
 	if err != nil {
 		return nil, err
 	}
@@ -140,10 +150,10 @@ func (s Signer) SignDigest(digest []byte) (signature []byte, err error) {
 	in := &kms.SignInput{
 		KeyId:            aws.String(s.ID),
 		Message:          digest,
-		SigningAlgorithm: aws.String("ECDSA_SHA_256"),
-		MessageType:      aws.String("DIGEST"),
+		SigningAlgorithm: kmstypes.SigningAlgorithmSpecEcdsaSha256,
+		MessageType:      kmstypes.MessageTypeDigest,
 	}
-	out, err := s.KMS.Sign(in)
+	out, err := s.Client.Sign(context.TODO(), in)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +208,7 @@ func (s Signer) EthereumSign(msg []byte) (signature []byte, err error) {
 }
 
 func (s Signer) TransactOpts() (*bind.TransactOpts, error) {
-	return NewKMSTransactor(s.KMS, s.ID, s.chainID)
+	return NewKMSTransactor(s.Client, s.ID, s.chainID)
 }
 
 func publicKeyBytesToAddress(pub []byte) (common.Address, error) {
