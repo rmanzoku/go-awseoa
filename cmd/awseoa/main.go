@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/big"
 	"os"
 	"strings"
 
@@ -65,7 +66,7 @@ func AddTag(svc *kms.KMS, keyID, tagKey, tagValue string) (err error) {
 	in := &kms.TagResourceInput{
 		KeyId: aws.String(keyID),
 		Tags: []*kms.Tag{
-			&kms.Tag{
+			{
 				TagKey:   aws.String(tagKey),
 				TagValue: aws.String(tagValue),
 			},
@@ -76,7 +77,7 @@ func AddTag(svc *kms.KMS, keyID, tagKey, tagValue string) (err error) {
 }
 
 func New(svc *kms.KMS) (err error) {
-	signer, err := awseoa.CreateSigner(svc)
+	signer, err := awseoa.CreateSigner(svc, big.NewInt(1))
 	if err != nil {
 		return
 	}

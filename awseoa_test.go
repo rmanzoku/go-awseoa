@@ -22,6 +22,7 @@ var (
 	region  = os.Getenv("AWS_DEFAULT_REGION")
 	to      = common.HexToAddress("0xd868711BD9a2C6F1548F5f4737f71DA67d821090")
 	keyID   = os.Getenv("KEYID")
+	chainID = big.NewInt(4)
 )
 
 var svc *kms.KMS
@@ -36,7 +37,7 @@ func TestCreateSigner(t *testing.T) {
 		t.Skip()
 	}
 
-	s, err := CreateSigner(svc)
+	s, err := CreateSigner(svc, chainID)
 	fmt.Println(err)
 	assert.Nil(t, err)
 
@@ -44,7 +45,7 @@ func TestCreateSigner(t *testing.T) {
 }
 
 func TestSetAlias(t *testing.T) {
-	s, err := NewSigner(svc, keyID)
+	s, err := NewSigner(svc, keyID, chainID)
 	assert.Nil(t, err)
 
 	err = s.SetAlias(s.Address().String())
@@ -67,7 +68,7 @@ func TestSendEther(t *testing.T) {
 }
 
 func TestEthereumSign(t *testing.T) {
-	s, err := NewSigner(svc, keyID)
+	s, err := NewSigner(svc, keyID, chainID)
 	assert.Nil(t, err)
 
 	msg := "0xd75be5d1b23bc1c3c22c0708a5c822f927f1eb8d609d684ef91996fd2bf2bbda"
@@ -99,7 +100,7 @@ func TestMain(m *testing.M) {
 
 	svc = kms.New(sess)
 
-	topts, err = NewKMSTransactor(svc, keyID)
+	topts, err = NewKMSTransactor(svc, keyID, chainID)
 	if err != nil {
 		panic(err)
 	}

@@ -2,6 +2,7 @@ package kmsutil
 
 import (
 	"errors"
+	"math/big"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/kms"
@@ -10,13 +11,13 @@ import (
 	awseoa "github.com/rmanzoku/go-awseoa"
 )
 
-func TransactOptsFromAddress(svc *kms.KMS, addr common.Address) (*bind.TransactOpts, error) {
+func TransactOptsFromAddress(svc *kms.KMS, addr common.Address, chainID *big.Int) (*bind.TransactOpts, error) {
 	keyID, err := KeyIDFromAddress(svc, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	return awseoa.NewKMSTransactor(svc, keyID)
+	return awseoa.NewKMSTransactor(svc, keyID, chainID)
 }
 
 func KeyIDFromAddress(svc *kms.KMS, addr common.Address) (string, error) {
