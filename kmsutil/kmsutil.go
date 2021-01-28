@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	awseoa "github.com/rmanzoku/go-awseoa"
+	awseoa "github.com/rmanzoku/go-awseoa/v2"
 )
 
 func NewKMSClient() (*kms.Client, error) {
