@@ -1,4 +1,4 @@
-module github.com/rmanzoku/go-awseoa
+module github.com/rmanzoku/go-awseoa/v2
 
 go 1.15
 
