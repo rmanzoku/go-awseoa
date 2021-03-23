@@ -82,6 +82,16 @@ func New(svc *kms.Client) (err error) {
 	return
 }
 
+func usage() {
+	fmt.Println("Usage of awseoa:")
+	fmt.Println("")
+	fmt.Println("   list     Show list of keys")
+	fmt.Println("            --tags: with tags")
+	fmt.Println("   new      Create key")
+	fmt.Println("   add-tag [keyID] [name:value]")
+	fmt.Println("            add tag to exist key")
+}
+
 func main() {
 	var err error
 	listFlag := flag.NewFlagSet("list", flag.ExitOnError)
@@ -91,7 +101,7 @@ func main() {
 	listFlag.BoolVar(&flagTags, "tags", flagTags, "Show tags")
 
 	if len(os.Args) == 1 {
-		flag.Usage()
+		usage()
 		return
 	}
 
@@ -111,7 +121,7 @@ func main() {
 		tag := strings.Split(os.Args[3], ":")
 		err = AddTag(svc, keyID, tag[0], tag[1])
 	default:
-		flag.Usage()
+		usage()
 	}
 
 	if err != nil {
