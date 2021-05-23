@@ -88,7 +88,7 @@ func usage() {
 	fmt.Println("   list     Show list of keys")
 	fmt.Println("            --tags: with tags")
 	fmt.Println("   new      Create key")
-	fmt.Println("   add-tag [keyID] [name:value]")
+	fmt.Println("   add-tag [keyID] [name:value] [name:value]...")
 	fmt.Println("            add tag to exist key")
 }
 
@@ -96,7 +96,7 @@ func main() {
 	var err error
 	listFlag := flag.NewFlagSet("list", flag.ExitOnError)
 	_ = flag.NewFlagSet("new", flag.ExitOnError)
-	_ = flag.NewFlagSet("add-tag", flag.ExitOnError)
+	_ = flag.NewFlagSet("add-tags", flag.ExitOnError)
 
 	listFlag.BoolVar(&flagTags, "tags", flagTags, "Show tags")
 
@@ -116,10 +116,13 @@ func main() {
 		err = List(svc)
 	case "new":
 		err = New(svc)
-	case "add-tag":
+	case "add-tags":
 		keyID := os.Args[2]
-		tag := strings.Split(os.Args[3], ":")
-		err = AddTag(svc, keyID, tag[0], tag[1])
+
+		for i := 3; i < len(os.Args); i++ {
+			parts := strings.Split(os.Args[i], ":")
+			err = AddTag(svc, keyID, parts[0], parts[1])
+		}
 	default:
 		usage()
 	}
