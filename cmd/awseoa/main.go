@@ -88,7 +88,7 @@ func usage() {
 	fmt.Println("   list     Show list of keys")
 	fmt.Println("            --tags: with tags")
 	fmt.Println("   new      Create key")
-	fmt.Println("   add-tag [keyID] [name:value] [name:value]...")
+	fmt.Println("   add-tags [keyID] [name:value] [name:value]...")
 	fmt.Println("            add tag to exist key")
 }
 
