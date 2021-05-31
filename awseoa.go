@@ -199,6 +199,9 @@ func (s Signer) SignDigest(digest []byte) (signature []byte, err error) {
 func (s Signer) EthereumSign(msg []byte) (signature []byte, err error) {
 	digest := toEthSignedMessageHash(msg)
 	sig, err := s.SignDigest(digest)
+	if err != nil {
+		return nil, err
+	}
 
 	if sig[64] < 27 {
 		sig[64] += 27
