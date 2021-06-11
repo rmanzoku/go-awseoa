@@ -10,6 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/shopspring/decimal"
 )
 
 func recover(hash, sig []byte) (common.Address, error) {
@@ -48,4 +50,28 @@ func SendEther(client *ethclient.Client, transactOpts *bind.TransactOpts, to com
 	}
 
 	return tx, client.SendTransaction(ctx, tx)
+}
+
+func EtherToWei(ether float64) (*big.Int, error) {
+	etherDecimal := decimal.NewFromFloat(ether)
+	base := decimal.NewFromInt(params.Ether)
+
+	retDecimal := etherDecimal.Mul(base).Floor()
+	ret, ok := new(big.Int).SetString(retDecimal.String(), 10)
+	if !ok {
+		return nil, errors.New("Invalit number " + retDecimal.String())
+	}
+	return ret, nil
+}
+
+func GweiToWei(gwei float64) (*big.Int, error) {
+	gweiDecimal := decimal.NewFromFloat(gwei)
+	base := decimal.NewFromInt(params.GWei)
+
+	retDecimal := gweiDecimal.Mul(base).Floor()
+	ret, ok := new(big.Int).SetString(retDecimal.String(), 10)
+	if !ok {
+		return nil, errors.New("Invalit number " + retDecimal.String())
+	}
+	return ret, nil
 }
