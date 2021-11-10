@@ -11,12 +11,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	kmstypes "github.com/aws/aws-sdk-go-v2/service/kms/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	awseoa "github.com/rmanzoku/go-awseoa/v2"
 	"github.com/rmanzoku/go-awseoa/v2/kmsutil"
 )
 
 var (
-	flagTags = true
+	flagTags    = true
+	flagBalance = false
 )
 
 func List(svc *kms.Client) (err error) {
@@ -54,7 +57,19 @@ func List(svc *kms.Client) (err error) {
 			}
 		}
 
-		fmt.Println(alias, keyID, tags)
+		balance := big.NewInt(0)
+		if flagBalance {
+			cli, err := ethclient.Dial(os.Getenv("RPC"))
+			if err != nil {
+				return err
+			}
+			balance, err = cli.BalanceAt(context.TODO(), common.HexToAddress(alias), nil)
+			if err != nil {
+				return err
+			}
+		}
+
+		fmt.Println(alias, keyID, tags, balance.Text(10))
 	}
 	return
 }
@@ -87,6 +102,7 @@ func usage() {
 	fmt.Println("")
 	fmt.Println("   list     Show list of keys")
 	fmt.Println("            --tags: with tags")
+	fmt.Println("            --balance: with balance")
 	fmt.Println("   new      Create key")
 	fmt.Println("   add-tags [keyID] [name:value] [name:value]...")
 	fmt.Println("            add tag to exist key")
@@ -99,6 +115,7 @@ func main() {
 	_ = flag.NewFlagSet("add-tags", flag.ExitOnError)
 
 	listFlag.BoolVar(&flagTags, "tags", flagTags, "Show tags")
+	listFlag.BoolVar(&flagBalance, "balance", flagBalance, "Show balance via environment value RPC")
 
 	if len(os.Args) == 1 {
 		usage()
@@ -109,7 +126,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	listFlag.Parse(os.Args[2:])
+	err = listFlag.Parse(os.Args[2:])
+	if err != nil {
+		panic(err)
+	}
 
 	switch os.Args[1] {
 	case "list":
