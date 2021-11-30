@@ -40,13 +40,14 @@ func NewKMSTransactor(svc *kms.Client, id string, chainID *big.Int) (*bind.Trans
 		return nil, err
 	}
 
+	signer := types.LatestSignerForChainID(chainID)
+
 	return &bind.TransactOpts{
 		From: keyAddr,
 		Signer: func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
 			if address != keyAddr {
 				return nil, errors.New("not authorized to sign this account")
 			}
-			signer := types.NewEIP155Signer(s.chainID)
 			digest := signer.Hash(tx).Bytes()
 
 			sig, err := s.SignDigest(digest)
@@ -172,7 +173,10 @@ func (s Signer) SignDigest(digest []byte) (signature []byte, err error) {
 		sig.S = new(big.Int).Sub(secp256k1N, sig.S)
 	}
 
-	signature = append(sig.R.Bytes(), sig.S.Bytes()...)
+	sigr := pad32(sig.R.Bytes())
+	sigs := pad32(sig.S.Bytes())
+
+	signature = append(sigr, sigs...)
 
 	// Calc V
 	for _, v := range []int{0, 1} {
@@ -229,4 +233,15 @@ func toEthSignedMessageHash(message []byte) []byte {
 
 func keccak256(data []byte) []byte {
 	return crypto.Keccak256(data)
+}
+
+func pad32(src []byte) []byte {
+	l := 32
+	if len(src) == l {
+		return src
+	}
+
+	dst := make([]byte, l)
+	copy(dst, src)
+	return dst
 }

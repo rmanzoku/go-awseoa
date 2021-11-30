@@ -1,8 +1,10 @@
 package awseoa
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -36,15 +38,93 @@ func decodeHex(s string) ([]byte, error) {
 	return hex.DecodeString(s[2:])
 }
 
-func SendEther(client *ethclient.Client, transactOpts *bind.TransactOpts, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	ctx := transactOpts.Context
-	nonce, err := client.NonceAt(ctx, transactOpts.From, nil)
+func SendEther(client *ethclient.Client, opts *bind.TransactOpts, to common.Address, amount *big.Int) (*types.Transaction, error) {
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+		opts.Context = ctx
+	}
+
+	chainId, err := client.ChainID(ctx)
 	if err != nil {
 		return nil, err
 	}
-	tx := types.NewTransaction(nonce, to, amount, 21000, transactOpts.GasPrice, nil)
 
-	tx, err = transactOpts.Signer(transactOpts.From, tx)
+	var nonce uint64
+	if opts.Nonce == nil {
+		nonce, err = client.NonceAt(ctx, opts.From, nil)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		nonce = opts.Nonce.Uint64()
+	}
+
+	opts.Value = amount
+
+	// Estimate GasLimit
+	gasLimit := opts.GasLimit
+	if opts.GasLimit == 0 {
+		gasLimit = 21000
+	}
+
+	var rawTx *types.Transaction
+
+	if opts.GasPrice != nil {
+		rawTx = types.NewTransaction(nonce, to, amount, gasLimit, opts.GasPrice, nil)
+	} else {
+		// Only query for basefee if gasPrice not specified
+		if head, errHead := client.HeaderByNumber(ctx, nil); errHead != nil {
+			return nil, errHead
+		} else if head.BaseFee != nil {
+
+			// Estimate TipCap
+			gasTipCap := opts.GasTipCap
+			if gasTipCap == nil {
+				tip, err := client.SuggestGasTipCap(ctx)
+				if err != nil {
+					return nil, err
+				}
+				gasTipCap = tip
+			}
+
+			// Estimate FeeCap
+			gasFeeCap := opts.GasFeeCap
+			if gasFeeCap == nil {
+
+				gasFeeCap = new(big.Int).Add(
+					gasTipCap,
+					new(big.Int).Mul(head.BaseFee, big.NewInt(2)),
+				)
+			}
+			if gasFeeCap.Cmp(gasTipCap) < 0 {
+				return nil, fmt.Errorf("maxFeePerGas (%v) < maxPriorityFeePerGas (%v)", gasFeeCap, gasTipCap)
+			}
+
+			baseTx := &types.DynamicFeeTx{
+				ChainID:    chainId,
+				Nonce:      nonce,
+				GasTipCap:  gasTipCap,
+				GasFeeCap:  gasFeeCap,
+				Gas:        gasLimit,
+				To:         &to,
+				Value:      amount,
+				Data:       nil,
+				AccessList: nil,
+			}
+
+			rawTx = types.NewTx(baseTx)
+		} else {
+			gasPrice, err := client.SuggestGasPrice(ctx)
+			if err != nil {
+				return nil, err
+			}
+			// Chain is not London ready -> use legacy transaction
+			rawTx = types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil)
+		}
+	}
+
+	tx, err := opts.Signer(opts.From, rawTx)
 	if err != nil {
 		return nil, err
 	}

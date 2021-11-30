@@ -20,7 +20,6 @@ var (
 	valueEther float64 = 0
 	from               = ""
 	to                 = ""
-	gasGwei    float64 = 1
 )
 
 func handler(ctx context.Context) (err error) {
@@ -29,7 +28,7 @@ func handler(ctx context.Context) (err error) {
 		return
 	}
 
-	fmt.Printf("Sending %f Ether from %s to %s gas: %f gwei\n", valueEther, from, to, gasGwei)
+	fmt.Printf("Sending %f Ether from %s to %s\n", valueEther, from, to)
 
 	ethcli, err := ethclient.Dial(rpc)
 	if err != nil {
@@ -53,11 +52,11 @@ func handler(ctx context.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	topts.Context = context.TODO()
-	topts.GasPrice, err = awseoa.GweiToWei(gasGwei)
-	if err != nil {
-		return err
-	}
+	topts.Context = ctx
+	// topts.GasPrice, err = awseoa.GweiToWei(gasGwei)
+	// if err != nil {
+	// 	return err
+	// }
 
 	amount, err := awseoa.EtherToWei(valueEther)
 	if err != nil {
