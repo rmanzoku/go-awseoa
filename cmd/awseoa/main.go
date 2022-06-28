@@ -97,6 +97,16 @@ func New(svc *kms.Client) (err error) {
 	return
 }
 
+func GetAddress(svc *kms.Client, keyID string) (err error) {
+
+	address, err := awseoa.KeyID2Address(svc, keyID)
+	if err != nil {
+		return
+	}
+	fmt.Println(address.String())
+	return nil
+}
+
 func usage() {
 	fmt.Println("Usage of awseoa:")
 	fmt.Println("")
@@ -134,6 +144,9 @@ func main() {
 	switch os.Args[1] {
 	case "list":
 		err = List(svc)
+	case "get-address":
+		keyID := os.Args[2]
+		err = GetAddress(svc, keyID)
 	case "new":
 		err = New(svc)
 	case "add-tags":

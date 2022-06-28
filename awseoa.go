@@ -72,6 +72,14 @@ func NewSigner(svc *kms.Client, id string, chainID *big.Int) (*Signer, error) {
 	return s, err
 }
 
+func KeyID2Address(svc *kms.Client, id string) (common.Address, error) {
+	s, err := NewSigner(svc, id, big.NewInt(1))
+	if err != nil {
+		return common.HexToAddress(""), err
+	}
+	return s.Address(), nil
+}
+
 func CreateSigner(svc *kms.Client, chainID *big.Int) (*Signer, error) {
 	in := new(kms.CreateKeyInput)
 	in.CustomerMasterKeySpec = kmstypes.CustomerMasterKeySpecEccSecgP256k1
